@@ -93,18 +93,12 @@ remDr$delete()
 
 load("8 Data dumps/22 TED scrape/log/TED log.Rdata")
 
-ted.log=gtabastiat::bt_bind(ted.log, 
-                            subset(results, ! case.id %in% ted.log$case.id))
-ted.log[is.na(ted.log)]=F
-
-save(ted.log, "8 Data dumps/22 TED scrape/log/TED log.Rdata")
-
-
 ## bulk download
+new.cases=subset(results, ! case.id %in% ted.log$case.id)
 
-if(nrow(subset(results, ! case.id %in% ted.log$case.id))>0){
+if(nrow(new.cases)>0){
   
-  pub.dates=unique(subset(results, ! case.id %in% ted.log$case.id)$publication.date)
+  pub.dates=unique(new.cases$publication.date)
   pub.dates=unique(paste(year(pub.dates),sprintf("%02i",month(pub.dates)),sep="-"))
   
   for(pd in pub.dates){
@@ -113,4 +107,16 @@ if(nrow(subset(results, ! case.id %in% ted.log$case.id))>0){
         write_disk(paste("8 Data dumps/22 TED scrape/data/",y.m[1],"-",y.m[2],".tar.gz",sep=""), overwrite=TRUE))
   }
   
+  
+  
+  ted.log=gtabastiat::bt_bind(ted.log, 
+                              new.cases)
+  ted.log[is.na(ted.log)]=F
+  
+  save(ted.log, "8 Data dumps/22 TED scrape/log/TED log.Rdata")
+  
+  
 }
+
+
+
