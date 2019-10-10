@@ -2,8 +2,9 @@ library(stringr)
 library(XML)
 library(stringr)
 library(splitstackshape)
+
 rm(list = ls())
-setwd("GTA cloud")
+gtalibrary::gta_setwd()
 
 ## function
 get_attr=function(document, attribute){
@@ -73,7 +74,7 @@ pub.dates=c(paste(2014,sprintf("%02i",c(1:4)), sep="-"),
 
 
 ## restricting the zips
-all.zips=list.files(path = "22 TED scrape/data", pattern = ".tar.gz",  full.names = T)
+all.zips=list.files(path = "8 Data dumps/22 TED scrape/data", pattern = ".tar.gz",  full.names = T)
 all.zips=all.zips[grepl(paste(pub.dates, collapse="|"), all.zips)]
 all.zips=all.zips[length(all.zips):1]
 
@@ -82,28 +83,28 @@ all.zips=all.zips[length(all.zips):1]
 for(zip in all.zips){
   
   ## cleaning out the temp folder from XML files
-  old.files=list.files(path = "22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
+  old.files=list.files(path = "8 Data dumps/22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
   unlink(old.files)
   rm(old.files)
   
   
   print(paste(zip, "unzip"))
   
-  untar(zip,exdir="22 TED scrape/temp")
+  untar(zip,exdir="8 Data dumps/22 TED scrape/temp")
   
-  sub.tar=list.files("22 TED scrape/temp", pattern = ".tar.gz", full.names = TRUE)
+  sub.tar=list.files("8 Data dumps/22 TED scrape/temp", pattern = ".tar.gz", full.names = TRUE)
   if(length(sub.tar)>0){
     for(i in 1:length(sub.tar)){
-      untar(sub.tar[i],exdir="22 TED scrape/temp")
+      untar(sub.tar[i],exdir="8 Data dumps/22 TED scrape/temp")
       print(sub.tar[i])
     }
   }
   print(zip)
-  unlink("22 TED scrape/temp/*.tar.gz",recursive = T)
+  unlink("8 Data dumps/22 TED scrape/temp/*.tar.gz",recursive = T)
   
   
   
-  all.files=list.files(path = "22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
+  all.files=list.files(path = "8 Data dumps/22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
   
   ## classifiying for relevance
   print(paste(zip, "classifying"))
@@ -117,6 +118,22 @@ for(zip in all.zips){
   batch=1
   for(check.file in all.files){
     step=step+1
+    
+    
+    xtree <- xmlInternalTreeParse(check.file)
+    root <- xmlRoot(xtree)
+    
+    file=str_extract(check.file, "\\d+_\\d+\\.xml")
+    ted.parsed=data.frame()
+    
+    gta_collect_dom(root,1)
+    
+    if(any(grepl("gpa", ted.parsed$element.name, ignore.case = T))){
+      stop("found one")
+    }
+    
+    ted.parsed.complete=rbind(ted.parsed.complete,
+                              subset(ted.parsed, grepl("^[a-z]+?", element.name)==F))
     
     
     ## checking for elegibiltiy
@@ -155,7 +172,7 @@ for(zip in all.zips){
     if(length(directive)==0){
       directive=NA
       
-      load("22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
+      load("8 Data dumps/22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
       
       ted.error.log=rbind(ted.error.log, 
                           data.frame(file=check.file,
@@ -163,7 +180,7 @@ for(zip in all.zips){
                                      batch=zip,
                                      stringsAsFactors = F))
       
-      save(ted.error.log, file="22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
+      save(ted.error.log, file="8 Data dumps/22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
       
       rm(ted.error.log)
       print("No legal base")
@@ -193,7 +210,7 @@ for(zip in all.zips){
     
     if(length(nc)==0){
       
-      load("22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
+      load("8 Data dumps/22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
       
       ted.error.log=rbind(ted.error.log, 
                           data.frame(file=check.file,
@@ -201,7 +218,7 @@ for(zip in all.zips){
                                      batch=zip,
                                      stringsAsFactors = F))
       
-      save(ted.error.log, file="22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
+      save(ted.error.log, file="8 Data dumps/22 TED scrape/result/TED pre-2014 parsing error log.Rdata")
       
       rm(ted.error.log)
       
@@ -277,7 +294,7 @@ for(zip in all.zips){
     
     if(relevant.cases>=2000){
       ## saving the cases
-      load("22 TED scrape/result/TED results - latest search.Rdata")
+      load("8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
       r$gpa=NA
       r$collection.date=Sys.Date()
       r$file.extracted=F
@@ -293,16 +310,16 @@ for(zip in all.zips){
       
       results=rbind(results, r)
       
-      save(results, file="22 TED scrape/result/TED results - latest search.Rdata")
+      save(results, file="8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
       rm(results)
       r<<-data.frame()
       
       
       
       # saving parsing results
-      parse.file=paste("22 TED scrape/result/parsed-not-processed/TED full parse - ",Sys.Date()," - batch ",batch,".Rdata",sep="")
+      parse.file=paste("8 Data dumps/22 TED scrape/result/parsed-not-processed/TED full parse - ",Sys.Date()," - batch ",batch,".Rdata",sep="")
       save(ted.parsed.complete, file=parse.file)
-      save(results, file="22 TED scrape/result/TED results - latest search.Rdata")
+      save(results, file="8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
       # reset
       relevant.cases =0
       batch = batch+1
@@ -314,7 +331,7 @@ for(zip in all.zips){
   }
   
   ## storing the values
-  load("22 TED scrape/result/TED results - latest search.Rdata")
+  load("8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
   r$gpa=NA
   r$collection.date=Sys.Date()
   r$file.extracted=F
@@ -330,16 +347,16 @@ for(zip in all.zips){
   
   results=rbind(results, r)
   
-  save(results, file="22 TED scrape/result/TED results - latest search.Rdata")
+  save(results, file="8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
   rm(results)
   r<<-data.frame()
   
   
   
   # saving parsing results
-  parse.file=paste("22 TED scrape/result/parsed-not-processed/TED full parse - ",Sys.Date()," - batch ",batch,".Rdata",sep="")
+  parse.file=paste("8 Data dumps/22 TED scrape/result/parsed-not-processed/TED full parse - ",Sys.Date()," - batch ",batch,".Rdata",sep="")
   save(ted.parsed.complete, file=parse.file)
-  save(results, file="22 TED scrape/result/TED results - latest search.Rdata")
+  save(results, file="8 Data dumps/22 TED scrape/result/TED results - latest search.Rdata")
   
  
   
@@ -350,9 +367,9 @@ for(zip in all.zips){
   
   ## Storing the good stuff
   
-  all.files=list.files(path = "22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
+  all.files=list.files(path = "8 Data dumps/22 TED scrape/temp", pattern = ".xml",  full.names = T, recursive = T)
   
-  new.location=paste("22 TED scrape/relevant cases/",unlist(str_extract_all(all.files, "\\d+_\\d+.xml$")),sep="")
+  new.location=paste("8 Data dumps/22 TED scrape/relevant cases/",unlist(str_extract_all(all.files, "\\d+_\\d+.xml$")),sep="")
   
   # copying them over
   print(paste(zip, "copying relevant XMLs"))
@@ -366,7 +383,7 @@ for(zip in all.zips){
   
   # cleaning up
   print(paste(zip, "cleaning up"))
-  do.call(file.remove, list(list.files("22 TED scrape/temp", full.names = TRUE)))
+  do.call(file.remove, list(list.files("8 Data dumps/22 TED scrape/temp", full.names = TRUE)))
   
   print(paste(zip, "concluded"))
 }
