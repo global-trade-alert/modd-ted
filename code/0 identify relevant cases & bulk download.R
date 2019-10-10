@@ -23,7 +23,7 @@ e$click()
 ### DO THIS AS AN EXPERT QUERY:
 # https://ted.europa.eu/TED/misc/helpPage.do?helpPageId=expertSearch
 
-months.back=99
+months.back=6
 end.date=as.Date(paste(year(Sys.Date()),sprintf("%02i",month(Sys.Date())),"01",sep=""), "%Y%m%d")-1
 start.date=as.Date(paste(year(Sys.Date()),sprintf("%02i",month(Sys.Date())),"01",sep=""), "%Y%m%d") %m-% months(months.back)
 
@@ -40,18 +40,23 @@ e$sendKeys(my.query)
 e=remDr$findElement(xpath="//button[@title='Perform search']")
 e$click()
 
-
+Sys.sleep(2)
 ## collecting all document numbers
 html <- htmlParse(remDr$getSource()[[1]], asText=T)
 
 
 
+# results=data.frame(case.id=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlValue),
+#                   url=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlGetAttr, "href"),
+#                   description=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[3]", xmlValue),
+#                   country.code=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[4]", xmlValue),
+#                   publication.date=as.Date(xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[5]", xmlValue), "%d/%m/%Y"),
+#                   stringsAsFactors = F)
+
 results=data.frame(case.id=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlValue),
-                  url=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlGetAttr, "href"),
-                  description=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[3]", xmlValue),
-                  country.code=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[4]", xmlValue),
-                  publication.date=as.Date(xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[5]", xmlValue), "%d/%m/%Y"),
-                  stringsAsFactors = F)
+                   publication.date=as.Date(xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[5]", xmlValue), "%d/%m/%Y"),
+                   collection.date=Sys.Date(),
+                   stringsAsFactors = F)
 
 result.pages=max(as.numeric(str_extract(unique(xpathSApply(html, "//div[@class='page-icon pagelast']/descendant::a", xmlGetAttr, "href")), "\\d+$")))
 
@@ -64,10 +69,8 @@ for(i in 2:result.pages){
   html <- htmlParse(remDr$getSource()[[1]], asText=T)
   
   r=data.frame(case.id=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlValue),
-               url=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[2]/descendant::a", xmlGetAttr, "href"),
-               description=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[3]", xmlValue),
-               country.code=xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[4]", xmlValue),
                publication.date=as.Date(xpathSApply(html, "//div[@class='aroundTable']/descendant::tbody/tr/td[5]", xmlValue), "%d/%m/%Y"),
+               collection.date=Sys.Date(),
                stringsAsFactors = F)
   
   results=unique(rbind(results, r))
@@ -88,54 +91,9 @@ for(i in 2:result.pages){
 
 remDr$delete()
 
+load("8 Data dumps/22 TED scrape/log/TED log.Rdata")
 
-results$file=NA
-results$gpa=NA
-results$collection.date=Sys.Date()
-results$file.extracted=F
-results$fully.parsed=F
-results$fully.hs.converted=F
-results$added.to.bulk.nr=NA
-results$gta.relevant=NA
-results$issuer.name=NA
-results$issuer.town=NA
-results$issuer.country=NA
-results$tender.source=NA
-results$multi.doc=NA
+ted.log=gtabastiat::bt_bind(ted.log, subset(results, ! case.id %in% ted.log$case.id))
+ted.log[is.na(ted.log)]=F
 
-
-output.path=paste("22 TED scrape/result/TED results - ",start.date," - ",end.date,".Rdata",sep="")
-save(results, file=output.path)
-save(results, file="22 TED scrape/result/TED results - latest search.Rdata")
-
-# 
-# 
-# ## comparing to existing entries
-# load("22 TED scrape/result/GTA TED replica.Rdata")
-# 
-# 
-# ## splitting the data
-# ted.cases=gtabastiat::b_bind(ted.cases, subset(results, ! case.id %in% ted.cases$case.id))
-# save(ted.cases,ted.directive,ted.cpv,ted.value,ted.currencies, file="22 TED scrape/result/GTA TED replica.Rdata")
-# 
-# 
-# ## starting bulk download
-# if(nrow(subset(ted.cases, file.extracted==F))>0){
-#   pub.dates=unique(subset(ted.cases, file.extracted==F)$publication.date)
-#   pub.dates=unique(paste(year(pub.dates),sprintf("%02i",month(pub.dates)),sep="-"))
-#   
-#   ## do the login
-#   
-#   
-#   
-#   ## bulk download
-#   for(pd in pub.dates){
-#     y.m=unlist(strsplit(pd, "-"))
-#     GET(paste("https://ted.europa.eu/xml-packages/monthly-packages/",y.m[1],"/",y.m[1],"-",y.m[2],".tar.gz",sep=""), 
-#         write_disk(paste("22 TED scrape/data/",pd,".tar.gz",sep=""), overwrite=TRUE))
-#   }
-#   
-# }
-# 
-
-
+save(ted.log, "8 Data dumps/22 TED scrape/log/TED log.Rdata")
